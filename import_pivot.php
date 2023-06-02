@@ -5,9 +5,9 @@
 // Required version of PivotX
 $pivotx_version = '2.0.2';
 
-$this_dir = dirname(__FILE__);
+$this_dir_array = explode(DIRECTORY_SEPARATOR, dirname(__FILE__));
 
-$this_dir_top = array_pop(explode(DIRECTORY_SEPARATOR,$this_dir));
+$this_dir_top = array_pop($this_dir_array);
 
 if ($this_dir_top == 'pivotx') {
     // For PivotX 2.x
@@ -146,7 +146,6 @@ function start_conversion($data, $doit=true) {
                 }
                 $done = false;
                 $path .= "/";
-                array_push($entrydirs,$path);
                 $entrydh = opendir($path);
                 while (($file = readdir($entrydh)) !== false) {
                     $entrypath = $path.$file;
@@ -162,8 +161,8 @@ function start_conversion($data, $doit=true) {
     if (!$doit) {
         if (!$done) {
             warn("Previewing step $batch_step of the import - you need to " . 
-                "confirm that you want to start the import. Continue by submitting " . "
-                <a href='#import_form'>the form</a> (at the bottom of the page) again.");
+		 "confirm that you want to start the import by checking \"Yes, do it!\".<br />" .
+		 "Continue by submitting <a href='#import_form'>the form</a> (at the bottom of the page) again.");
         } else {
             warn("Nothing to preview.");
         }
@@ -248,7 +247,12 @@ function show_form() {
     $batch_size_readonly = "";
     if (isset($_POST['batch_step'])) {
         $batch_size_readonly = "readonly='readonly' class='readonly'";
-        $batch_step = $_POST['batch_step']+1;
+        // Move to next batch only if we are going to convert / it's confirmed.
+        if (isset($_POST['confirm'])) {
+            $batch_step = $_POST['batch_step'] + 1;
+        } else {
+            $batch_step = $_POST['batch_step'];
+        }
     } else {
         $batch_step = 1;
     }
@@ -257,7 +261,7 @@ function show_form() {
     echo "<p>The current path is: ".dirname($self)."</p>";
 
     echo <<<EOM
-    <p>Please give the location of your Pivot database (to be merged) - relative or absolute path.</p>
+    <p>Please give the location of your flatfile database (to be merged) - relative or absolute path.</p>
     <form id='import_form' name='import_form' method='post' action='$self'>
     <table>
     <tr>
@@ -317,23 +321,22 @@ input.readonly {background-color: ButtonFace;}
 </head>
 <body>
 <h1>Welcome to the quick-and-dirty <?php echo PIVOT; ?> import/merge script</h1>
-<p>Use this to import/merge/append entries from 
+<p>Use this to import/merge/append <strong>entries</strong> from
 <?php 
 if ($ispivotx) {
+    echo "your old Pivot (or another PivotX) to your new PivotX.</p>";
     if ($PIVOTX['db']->db_type=="sql") {
-        $database = "MySQL database";
+        echo "<p>Your PivotX is using a MySQL database</p>";
     } else {
-        $database = "flatfile database";
+        echo "<p>Your PivotX is using a flatfile database</p>";
     }
-    echo "your old Pivot to your new PivotX. Your PivotX is using a $database";
 } else {
-    echo 'one Pivot to another Pivot.';
+    echo 'one Pivot to another Pivot.</p>';
 }
 ?>
-</p>
+<p>NB! Only import from flatfile databases are supported.</p>
 
 <?php
-
 
 if (count($_POST)>0) {
 
@@ -359,10 +362,7 @@ if (count($_POST)>0) {
     } else {
 
         // go!
-
-
         $categories = array();
-
         start_conversion($_POST);
 
         // After the conversion, we'll see if we need to add categories:
@@ -380,7 +380,6 @@ if (count($_POST)>0) {
             $Cfg['cats'] = implode("|", $categorylist);
             SaveSettings();
         }
-
     }
 
 } else {
